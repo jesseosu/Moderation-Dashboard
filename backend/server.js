@@ -1,10 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 
-const contentRoutes = require("./routes/content");
-const actionRoutes = require("./routes/actions");
-const ruleRoutes = require("./routes/rules");
-const { initContentGenerator } = require("./data/contentStore");
+const contentRoutes = require("./src/routes/content");
+const actionRoutes  = require("./src/routes/actions");
+const ruleRoutes    = require("./src/routes/rules");
+const { initContentGenerator } = require("./src/data/contentStore");
 
 const app = express();
 const PORT = process.env.PORT || 4000;
