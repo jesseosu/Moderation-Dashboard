@@ -1,127 +1,89 @@
-import React, { useState } from "react";
-import { Rule, RuleAction, ContentItem } from "../types";
+import React, { useEffect, useState } from "react";
+import { Rule, fetchRules, createRule, deleteRule } from "../api/rules";
 
-interface RuleBuilderProps {
-  rules: Rule[];
-  onAddRule: (rule: Omit<Rule, "id">) => void;
-  onDeleteRule: (id: number) => void;
-  simulatedMatches: { ruleId: number; matchedItems: ContentItem[] };
-}
+type DraftRule = {
+  name: string;
+  matchType: "TEXT_CONTAINS";
+  pattern: string;
+  minModelConfidence?: number;
+  action: "approve" | "reject" | "escalate";
+};
 
-const RuleBuilder: React.FC<RuleBuilderProps> = ({
-  rules,
-  onAddRule,
-  onDeleteRule,
-  simulatedMatches,
-}) => {
-  const [name, setName] = useState("");
-  const [containsText, setContainsText] = useState("");
-  const [minConfidence, setMinConfidence] = useState<string>("");
-  const [action, setAction] = useState<RuleAction>("auto_reject");
+const defaultDraft: DraftRule = {
+  name: "",
+  matchType: "TEXT_CONTAINS",
+  pattern: "",
+  minModelConfidence: 0,
+  action: "reject"
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !containsText.trim()) return;
+export const RuleBuilder: React.FC = () => {
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [draft, setDraft] = useState<DraftRule>(defaultDraft);
+  const [loading, setLoading] = useState(true);
 
-    onAddRule({
-      name,
-      containsText,
-      action,
-      minConfidence: minConfidence ? Number(minConfidence) : undefined,
-    });
+  useEffect(() => {
+    fetchRules()
+      .then(setRules)
+      .finally(() => setLoading(false));
+  }, []);
 
-    setName("");
-    setContainsText("");
-    setMinConfidence("");
-    setAction("auto_reject");
+  const handleChange = (field: keyof DraftRule, value: any) => {
+    setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleCreate = async () => {
+    if (!draft.name || !draft.pattern) return;
+    const created = await createRule(draft);
+    setRules((prev) => [...prev, created]);
+    setDraft(defaultDraft);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteRule(id);
+    setRules((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  if (loading) return <div>Loading rules…</div>;
+
   return (
-    <div>
-      <h2 className="section-title">Rule Builder</h2>
+    <div className="rule-builder">
+      <h2>Rule Engine</h2>
 
-      <form className="rule-form" onSubmit={handleSubmit}>
+      <div className="rule-form">
         <input
-          className="input"
-          placeholder="Rule name (e.g. 'Auto reject spam')"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          placeholder="Rule name"
+          value={draft.name}
+          onChange={(e) => handleChange("name", e.target.value)}
         />
-
         <input
-          className="input"
-          placeholder="If text contains..."
-          value={containsText}
-          onChange={(e) => setContainsText(e.target.value)}
+          placeholder="Text pattern to match"
+          value={draft.pattern}
+          onChange={(e) => handleChange("pattern", e.target.value)}
         />
-
-        <input
-          className="input"
-          placeholder="Min model confidence (0 - 1, optional)"
-          value={minConfidence}
-          onChange={(e) => setMinConfidence(e.target.value)}
-        />
-
         <select
-          className="input"
-          value={action}
-          onChange={(e) => setAction(e.target.value as RuleAction)}
+          value={draft.action}
+          onChange={(e) =>
+            handleChange("action", e.target.value as DraftRule["action"])
+          }
         >
-          <option value="auto_reject">Auto-Reject</option>
-          <option value="auto_approve">Auto-Approve</option>
-          <option value="auto_escalate">Auto-Escalate</option>
+          <option value="approve">Auto Approve</option>
+          <option value="reject">Auto Reject</option>
+          <option value="escalate">Auto Escalate</option>
         </select>
 
-        <button className="btn btn-primary" type="submit">
-          Add Rule
-        </button>
-      </form>
-
-      <div className="rule-list">
-        {rules.length === 0 && (
-          <p className="empty-state">No rules defined yet.</p>
-        )}
-        {rules.map((rule) => (
-          <div key={rule.id} className="rule-card">
-            <div className="rule-header">
-              <strong>{rule.name}</strong>
-              <button
-                className="btn btn-small"
-                onClick={() => onDeleteRule(rule.id)}
-              >
-                Remove
-              </button>
-            </div>
-            <div className="rule-body">
-              <p>
-                Text contains: <code>{rule.containsText}</code>
-              </p>
-              {rule.minConfidence !== undefined && (
-                <p>Min confidence: {rule.minConfidence}</p>
-              )}
-              <p>Action: {rule.action.replace("auto_", "Auto ")}</p>
-            </div>
-          </div>
-        ))}
+        <button onClick={handleCreate}>Create Rule</button>
       </div>
 
-      {simulatedMatches.ruleId !== -1 && (
-        <div className="rule-simulation">
-          <h3>Rule Simulation</h3>
-          <p>
-            Rule <strong>
-              {
-                rules.find((r) => r.id === simulatedMatches.ruleId)?.name ??
-                "Unknown"
-              }
-            </strong>{" "}
-            would currently apply to{" "}
-            <strong>{simulatedMatches.matchedItems.length}</strong> items.
-          </p>
-        </div>
-      )}
+      <ul className="rule-list">
+        {rules.map((rule) => (
+          <li key={rule.id}>
+            <strong>{rule.name}</strong> – if {rule.matchType} “{rule.pattern}”
+            → {rule.action}
+            <button onClick={() => handleDelete(rule.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
-
-export default RuleBuilder;
