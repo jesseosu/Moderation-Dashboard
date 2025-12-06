@@ -1,9 +1,27 @@
-// src/App.tsx
+import React, { useState } from "react";
+import { ContentFeed } from "./components/ContentFeed";
+import { RuleBuilder } from "./components/RuleBuilder";
+import { ReviewPanel } from "./components/ReviewPanel";
+
 function App() {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-      <h1>Moderation Dashboard – Smoke Test</h1>
-      <p>If you can see this, React is rendering fine.</p>
+    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "sans-serif" }}>
+      <div style={{ flex: 2, borderRight: "1px solid #ddd", padding: "1rem" }}>
+        <h1>Moderation Dashboard</h1>
+        <ContentFeed onSelectItem={setSelectedId} />
+      </div>
+      <div style={{ flex: 1, borderRight: "1px solid #ddd", padding: "1rem" }}>
+        <RuleBuilder />
+      </div>
+      <div style={{ flex: 1, padding: "1rem" }}>
+        {selectedId ? (
+          <ReviewPanel contentId={selectedId} />
+        ) : (
+          <div>Select an item to review</div>
+        )}
+      </div>
     </div>
   );
 }

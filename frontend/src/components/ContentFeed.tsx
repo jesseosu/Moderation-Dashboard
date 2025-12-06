@@ -1,47 +1,56 @@
-import React from "react";
-import { ContentItem } from "../types";
-import StatusBadge from "./StatusBadge";
+import React, { useEffect, useState } from "react";
 
-interface ContentFeedProps {
-  items: ContentItem[];
-  selectedId?: number;
-  onSelect: (item: ContentItem) => void;
-}
-
-const ContentFeed: React.FC<ContentFeedProps> = ({
-  items,
-  selectedId,
-  onSelect,
-}) => {
-  return (
-    <div>
-      <h2 className="section-title">Incoming Content</h2>
-      <div className="feed">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className={`feed-item ${
-              selectedId === item.id ? "feed-item-selected" : ""
-            }`}
-            onClick={() => onSelect(item)}
-          >
-            <div className="feed-item-top">
-              <span className="feed-user">@{item.userId}</span>
-              <StatusBadge status={item.status} />
-            </div>
-            <p className="feed-text">{item.text}</p>
-            <div className="feed-meta">
-              <span>Tag hint: {item.tagHint}</span>
-              <span>Model confidence: {(item.modelConfidence * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        ))}
-        {items.length === 0 && (
-          <p className="empty-state">No content available. Waiting for stream…</p>
-        )}
-      </div>
-    </div>
-  );
+type ContentItem = {
+  id: number;
+  text: string;
+  status: string;
 };
 
-export default ContentFeed;
+type Props = {
+  onSelectItem: (id: number) => void;
+};
+
+export function ContentFeed({ onSelectItem }: Props) {
+  const [items, setItems] = useState<ContentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function fetchContent() {
+    try {
+      const res = await fetch("http://localhost:4000/api/content");
+      const data = await res.json();
+      setItems(data);
+    } catch (err) {
+      console.error("Failed to fetch content:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
+  if (loading) return <div>Loading content…</div>;
+
+  return (
+    <div>
+      <h2>Content Feed</h2>
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {items.map(item => (
+          <li
+            key={item.id}
+            onClick={() => onSelectItem(item.id)}
+            style={{
+              padding: "0.5rem",
+              marginBottom: "0.25rem",
+              border: "1px solid #ddd",
+              cursor: "pointer"
+            }}
+          >
+            <strong>[{item.status}]</strong> — {item.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

@@ -1,87 +1,55 @@
-import React, { useEffect } from "react";
-import { ContentItem } from "../types";
-import StatusBadge from "./StatusBadge";
+import React, { useEffect, useState } from "react";
 
-interface ReviewPanelProps {
-  item?: ContentItem;
-  onAction: (action: "approve" | "reject" | "escalate") => void;
-}
+type ContentItem = {
+  id: number;
+  text: string;
+  status: string;
+  actionHistory?: Array<any>;
+};
 
-const ReviewPanel: React.FC<ReviewPanelProps> = ({ item, onAction }) => {
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!item) return;
-      if (e.key === "a") onAction("approve");
-      if (e.key === "r") onAction("reject");
-      if (e.key === "e") onAction("escalate");
-    };
+type Props = {
+  contentId: number;
+};
 
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [item, onAction]);
+export function ReviewPanel({ contentId }: Props) {
+  const [item, setItem] = useState<ContentItem | null>(null);
 
-  if (!item) {
-    return (
-      <div>
-        <h2 className="section-title">Review Panel</h2>
-        <p className="empty-state">Select an item from the feed to review.</p>
-      </div>
-    );
+  async function fetchItem() {
+    try {
+      const res = await fetch(`http://localhost:4000/api/content/${contentId}`);
+      const data = await res.json();
+      setItem(data);
+    } catch (err) {
+      console.error("Failed to fetch item:", err);
+    }
   }
+
+  useEffect(() => {
+    fetchItem();
+  }, [contentId]);
+
+  if (!item) return <div>Loading item…</div>;
 
   return (
     <div>
-      <h2 className="section-title">Review Panel</h2>
-      <div className="review-card">
-        <div className="review-header">
-          <span className="feed-user">@{item.userId}</span>
-          <StatusBadge status={item.status} />
-        </div>
-        <p className="review-text">{item.text}</p>
-        <div className="review-meta">
-          <span>Tag hint: {item.tagHint}</span>
-          <span>
-            Model confidence: {(item.modelConfidence * 100).toFixed(0)}%
-          </span>
-          <span>Created: {new Date(item.createdAt).toLocaleString()}</span>
-        </div>
+      <h2>Review Item</h2>
 
-        <div className="review-actions">
-          <button
-            className="btn btn-approve"
-            onClick={() => onAction("approve")}
-          >
-            Approve (A)
-          </button>
-          <button
-            className="btn btn-reject"
-            onClick={() => onAction("reject")}
-          >
-            Reject (R)
-          </button>
-          <button
-            className="btn btn-escalate"
-            onClick={() => onAction("escalate")}
-          >
-            Escalate (E)
-          </button>
-        </div>
+      <p>
+        <strong>Status:</strong> {item.status}
+      </p>
 
-        <div className="history">
-          <h3>Action History</h3>
-          {item.actionHistory.length === 0 && (
-            <p className="empty-state">No actions taken yet.</p>
-          )}
-          {item.actionHistory.map((h, i) => (
-            <div key={i} className="history-row">
-              <span>{h.action.toUpperCase()}</span>
-              <span>{new Date(h.timestamp).toLocaleString()}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <p>
+        <strong>Text:</strong> {item.text}
+      </p>
+
+      <h3>History</h3>
+      <ul>
+        {(item.actionHistory || []).map((h, index) => (
+          <li key={index}>
+            {h.at} — {h.by} — {h.action}
+          </li>
+        ))}
+      </ul>
     </div>
   );
-};
-
-export default ReviewPanel;
+}
