@@ -1,3 +1,4 @@
+// backend/data/contentStore.js
 const { generateContentItem } = require("../../mockData");
 const { applyRulesToItem } = require("../rules/engine");
 const { getRules } = require("./rulesStore");
@@ -5,26 +6,57 @@ const { getRules } = require("./rulesStore");
 let contentItems = [];
 let nextId = 1;
 
+// How many messages we keep in memory (for demo)
+const MAX_ITEMS = 200;
+
 function createInitialItems(count = 50) {
   for (let i = 0; i < count; i++) {
-    const raw = generateContentItem(nextId++);
-    // no ML yet, so context is simple
-    const rules = getRules();
-    const withDecision = applyRulesToItem(raw, rules);
-    contentItems.push(withDecision);
+    const raw = generateRawItem();
+    const decided = applyRules(raw);
+    contentItems.push(decided);
+  }
+}
+
+function generateRawItem() {
+  const base = generateContentItem(nextId++);
+  // ensure it always has an id + default fields
+  return {
+    id: base.id ?? nextId - 1,
+    text: base.text || "",
+    status: base.status || "pending",
+    actionHistory: base.actionHistory || [],
+    // you can add more fields here later (userId, streamId, etc.)
+  };
+}
+
+function applyRules(rawItem) {
+  const rules = getRules();
+  return applyRulesToItem(rawItem, rules);
+}
+
+function trimIfNeeded() {
+  if (contentItems.length > MAX_ITEMS) {
+    const extra = contentItems.length - MAX_ITEMS;
+    contentItems.splice(0, extra); // drop oldest
   }
 }
 
 function initContentGenerator() {
-  // initial load
+  // Seed with an initial batch
   createInitialItems(50);
 
-  // later phases: setInterval to generate more
-  // for now, you can leave this or just do initial load
+  // Generate a new item every second (simulated live stream)
+  setInterval(() => {
+    const raw = generateRawItem();
+    const decided = applyRules(raw);
+    contentItems.push(decided);
+    trimIfNeeded();
+  }, 1000);
 }
 
 function getAllContent() {
-  return contentItems;
+  // newest first looks more like a live feed
+  return [...contentItems].reverse();
 }
 
 function findContentById(id) {
@@ -40,16 +72,16 @@ function updateContentStatus(id, newStatus, actor = "human_mod") {
   item.actionHistory.push({
     at: new Date().toISOString(),
     by: actor,
-    action: newStatus
+    action: newStatus,
   });
 
   return item;
 }
 
 function addContentItem(rawItem) {
-  const rules = getRules();
-  const decided = applyRulesToItem(rawItem, rules);
+  const decided = applyRules(rawItem);
   contentItems.push(decided);
+  trimIfNeeded();
   return decided;
 }
 
@@ -58,5 +90,5 @@ module.exports = {
   findContentById,
   updateContentStatus,
   addContentItem,
-  initContentGenerator
+  initContentGenerator,
 };

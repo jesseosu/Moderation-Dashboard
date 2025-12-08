@@ -1,3 +1,4 @@
+// backend/routes/actions.js
 const express = require("express");
 const { updateContentStatus } = require("../data/contentStore");
 
@@ -8,10 +9,21 @@ const router = express.Router();
 router.post("/", (req, res) => {
   const { contentId, action } = req.body;
   if (!contentId || !action) {
-    return res.status(400).json({ error: "contentId and action are required" });
+    return res
+      .status(400)
+      .json({ error: "contentId and action are required" });
   }
 
-  const updated = updateContentStatus(contentId, action, "human_mod");
+  // Map human actions to final statuses
+  const statusMap = {
+    approve: "approved",
+    reject: "rejected",
+    escalate: "escalated",
+  };
+
+  const status = statusMap[action] || "pending";
+
+  const updated = updateContentStatus(contentId, status, "human_mod");
   if (!updated) {
     return res.status(404).json({ error: "Content not found" });
   }
